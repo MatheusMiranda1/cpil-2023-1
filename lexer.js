@@ -2,6 +2,10 @@ const fs = require('fs')
 
 const blanks = [' ', '\t', '\n', '\r']
 
+const regexAlpha = /[A-Za-z]/
+const regexAlphaNum = /[A-Za-z0-9]/
+const regexDigits = /[0-9]/
+
 /* abre o arquivo que será analisado */
 const openFile = () => {
 
@@ -31,6 +35,8 @@ const analyze = source => {
     let lexeme = ''         // Lexemas sendo lido
     let char = ''           // Caractere sendo lido
     let pos                 // Posição sendo processada
+    let row = 1             // Primeira linha
+    let col = 1             // Primeira coluna
     const symbolsTable = [] // Tabela de simbolos
 
     // Acrescenta uma quebra de linha ao final do código fonte
@@ -90,7 +96,7 @@ const analyze = source => {
                 symbolsTable.push({lexeme, token: 'number', value: lexeme})
                 break
 
-            case 6.10:  // assign
+            case 6.11:  // assign
                 symbolsTable.push({lexeme, token: 'assign'})
                 break
 
@@ -98,13 +104,13 @@ const analyze = source => {
 
         // Reseta estado e lexema
         state = 0
-        lexema = ''
+        lexeme = ''
     }
 
     const displayError = () => {
-        console.error(`ERROR: unexpected char ${char} at ${pos} (state ${state}).`)
+        console.error(`ERROR [${row}:${col}]: unexpected char "${char}" (state ${state}).`)
         // Quando houver erro, termina o programa
-        process.exit(1)
+        process.exit(-1)
     }
 
     // percorre todo o código-fonte, caractere a caractere
@@ -113,6 +119,11 @@ const analyze = source => {
         // lê um caractere do código-fonte
         char = source.charAt(pos)
 
+        if(char == '\n') {
+            row++
+            col = 0
+        } 
+
         switch(state) {
             case 0:
 
@@ -120,14 +131,14 @@ const analyze = source => {
 
                 else if(char === 'w') advanceTo(7)
 
-                else if(char.match(/0-9/)) advanceTo(13)
+                else if(char.match(regexDigits)) advanceTo(13)
 
                 else if(char === '.') advanceTo(14)
 
                 else if(char === ':') advanceTo(17)
 
                 // Qualquer letra, exceto "r" e "w", já processadas acima
-                else if (char.match(/a-zA-Z/)) advanceTo(5)
+                else if (char.match(regexAlpha)) advanceTo(5)
 
                 else if (char === '+') terminate(6.1)
 
@@ -151,92 +162,94 @@ const analyze = source => {
             case 1:
 
                 if(char === 'e') advanceTo(2)
-                else if(char.match(/a-zA-Z0-9/)) advanceTo(5)
+                else if(char.match(regexAlphaNum)) advanceTo(5)
                 else displayError()
                 break
 
             case 2:
 
                 if(char === 'a') advanceTo(3)
-                else if(char.match(/a-zA-Z0-9/)) advanceTo(5)
+                else if(char.match(regexAlphaNum)) advanceTo(5)
                 else displayError()
                 break
 
             case 3:
 
                 if(char === 'd') advanceTo(4)
-                else if(char.match(/a-zA-Z0-9/)) advanceTo(5)
+                else if(char.match(regexAlphaNum)) advanceTo(5)
                 else displayError()
                 break
             
             case 4:
 
-                if(char.match(/a-zA-Z0-9/)) advanceTo(5)
+                if(char.match(regexAlphaNum)) advanceTo(5)
                 else if(blanks.includes(char)) terminate(6.7)
                 else displayError()
                 break
 
             case 5:
 
-                if(char.match(/a-zA-Z0-9/)) advanceTo(5)
+                if(char.match(regexAlphaNum)) advanceTo(5)
                 else if(blanks.includes(char)) terminate(6.8)
                 else displayError()
                 break
 
             case 7: 
                 if(char === 'r') advanceTo(8)            
-                else if(char.match(/a-zA-Z0-9/)) advanceTo(5)
+                else if(char.match(regexAlphaNum)) advanceTo(5)
                 else if(blanks.includes(char)) terminate(6.8)
                 else displayError()
                 break
 
             case 8: 
                 if(char === 'i') advanceTo(9)            
-                else if(char.match(/a-zA-Z0-9/)) advanceTo(5)
+                else if(char.match(regexAlphaNum)) advanceTo(5)
                 else if(blanks.includes(char)) terminate(6.8)
                 else displayError()
                 break
 
             case 9: 
                 if(char === 't') advanceTo(10)            
-                else if(char.match(/a-zA-Z0-9/)) advanceTo(5)
+                else if(char.match(regexAlphaNum)) advanceTo(5)
                 else if(blanks.includes(char)) terminate(6.8)
                 else displayError()
                 break
 
             case 10: 
                 if(char === 'e') advanceTo(11)            
-                else if(char.match(/a-zA-Z0-9/)) advanceTo(5)
+                else if(char.match(regexAlphaNum)) advanceTo(5)
                 else if(blanks.includes(char)) terminate(6.8)
                 else displayError()
                 break
 
             case 11:
-                if(char.match(/a-zA-Z0-9/)) advanceTo(5)
+                if(char.match(regexAlphaNum)) advanceTo(5)
                 else if(blanks.includes(char)) terminate(6.7)
                 else displayError()
                 break
 
             case 13:
-                if(char.match(/0-9/)) advanceTo(13)
+                if(char.match(regexDigits)) advanceTo(13)
                 else if(char === '.') advanceTo(14)
                 else if(blanks.includes(char)) terminate(6.9)
                 else displayError()
                 break
 
             case 14:
-                if(char.match(/0-9/)) advanceTo(14)
+                if(char.match(regexDigits)) advanceTo(14)
                 else if(blanks.includes(char)) terminate(6.9)
                 else displayError()
                 break
 
             case 17:
-                if(char === '=') terminate(6.10)
+                if(char === '=') terminate(6.11)
                 else displayError()
                 break 
 
-
         }
+
+        // incrementa o número da coluna se o caractere não for retorno de carro (\r)
+        if (char !== '\r') col++
     }
 
     // exibe a tabela de símbolos
